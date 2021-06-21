@@ -128,7 +128,7 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
                             self.iter.sigma[:, :, k] = np.identity(n_features)
                 if self.opt == 'fuzzy':  # estimates the cluster's assignment and TRIMMING (FUZZY)
                     self.iter = self.findClusterlabels__fuzzy(X)
-                else:  # estimates the cluster's labels_ment and TRIMMING (mixture models and HARD)
+                else:  # estimates the cluster's assignment and TRIMMING (mixture models and HARD)
                     self.iter = self.findClusterlabels_(X)
                 
                 if self.iter.code == 2 or i == self.ksteps - 1:  # if findClusterLabels returned 1, meaning that the cluster assignment has not changed or we're in the last concentration step:
@@ -212,17 +212,6 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
     def calc_obj_function(self, X):
         """
         Calculates the objective function value for mixture (obj_m) hard (obj_h) and fuzzy (obj_f)
-        PAPERS:
-        - HARD ASSIGNMENT: Fritz, H., Garcia-Escudero, L. A., & Mayo-Iscar, A. (2012).
-                           "tclust: An r package for a trimming approach to cluster analysis."
-                           Journal of Statistical Software, 47(12), 1-26.
-        - MIXTURE MODEL: Garcia-Escudero, Luis Angel, Alfonso Gordaliza, and Agustin Mayo-Iscar.
-                         "A constrained robust proposal for mixture modeling avoiding spurious solutions."
-                         Advances in Data Analysis and Classification 8.1 (2014): 27-43.
-        - FUZZY CLUSTERING: Fritz, H., GarciA-Escudero, L. A., & Mayo-Iscar, A. (2013).
-                            "Robust constrained fuzzy clustering."
-                            Information Sciences, 245, 38-52.
-
         :param X: Array of data [nsamples, nfeatures]
         :return:
         """
@@ -258,11 +247,6 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
     def estimClustPar(self, X):
         """
         Function to estimate model parameters
-        Papers:
-        - HARD labels_NMEMT Fritz, H., Garcia-Escudero, L. A., & Mayo-Iscar, A. (2012). tclust: An r package for a trimming approach to cluster analysis. Journal of Statistical Software, 47(12), 1-26.
-        - MIXTURE MODEL Garc�a-Escudero, Luis Angel, Alfonso Gordaliza, and Agust�n Mayo-Iscar. "A constrained robust proposal for mixture modeling avoiding spurious solutions." Advances in Data Analysis and Classification 8.1 (2014): 27-43.
-        - FUZZY CLUSTERING Fritz, H., Garc�A-Escudero, L. A., & Mayo-Iscar, A. (2013). Robust constrained fuzzy clustering. Information Sciences, 245, 38-52.
-
         :param X: 2D array of data to cluster [samples, variables]
         :return:
         """
@@ -282,13 +266,11 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
                     self.iter.sigma[:, :, k] = 0
         return self.iter
     
-    ######## FUNCTIONS FOR obtaining the assignment and trimming: findClustlabels_ (mixture models and hard labels_ment)  findClustlabels__f  (fuzzy labels_ment)
+    ######## FUNCTIONS FOR obtaining the assignment and trimming: findClustlabels_ (mixture models and hard assignment)  findClustlabels__f  (fuzzy assignment)
     def findClusterlabels_(self, X):
         """
         FUNCTION FOR obtaining the cluster assignment and trimming in the non FUZZY CASE (mixture and hard labels_nments)
-        PAPERS:
-        - HARD labels_NMEMT Fritz, H., Garcia-Escudero, L. A., & Mayo-Iscar, A. (2012). tclust: An r package for a trimming approach to cluster analysis. Journal of Statistical Software, 47(12), 1-26.
-        - MIXTURE MODEL Garcia-Escudero, Luis Angel, Alfonso Gordaliza, and Agustin Mayo-Iscar. "A constrained robust proposal for mixture modeling avoiding spurious solutions." Advances in Data Analysis and Classification 8.1 (2014): 27-43.
+        
         :param X: data matrix (samples x dimensions)
         :return:
         """
@@ -329,9 +311,8 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
     
     def findClusterlabels__fuzzy(self, X):
         """
-        Obtain labels_nment and trimming in the fuzzy case
-        PAPER:
-        - FUZZY CLUSTERING Fritz, H., Garc�A-Escudero, L. A., & Mayo-Iscar, A. (2013). Robust constrained fuzzy clustering. Information Sciences, 245, 38-52.
+        Obtain assignment and trimming in the fuzzy case
+       
         :param X:
         :return:
         """
@@ -364,7 +345,7 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         pre_z = np.nansum(self.iter.z_ij * ll_log, axis=1)
         tc_set = np.argsort(pre_z) > np.floor(n * self.alpha)
         
-        # Obtain the labels_ment iter$labels_  iter$z_ij including trimming
+        # Obtain the assignment iter$labels_  iter$z_ij including trimming
         self.iter.labels_ = (np.argmax(ll, axis=1) + 1) * tc_set
         self.iter.z_ij[~tc_set, :] = 0
         
@@ -444,9 +425,6 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
     def restr2_eigenv(self, autovalues, ni_ini, factor_e, zero_tol):
         """
         FUNCTION FOR APPLYING EIGEN CONSTRAINTS. These are the typical constraints
-        PAPER: Fritz, H., Garcia-Escudero, L. A., & Mayo-Iscar, A. (2012).
-                tclust: An r package for a trimming approach to cluster analysis.
-                Journal of Statistical Software, 47(12), 1-26.
         :param autovalues: matrix containing eigenvalues
         :param ni_ini: current sample size of the clusters
         :param factor_e: level of the constraints

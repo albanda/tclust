@@ -123,7 +123,7 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
                             self.iter.sigma[:, :, k] = np.identity(n_features)
                 if self.opt == 'fuzzy':  # estimates the cluster's assignment and TRIMMING (FUZZY)
                     self.iter = self.findClusterlabels__fuzzy(X)
-                else:  # estimates the cluster's labels_ment and TRIMMING (mixture models and HARD)
+                else:  # estimates the cluster's assignment and TRIMMING (mixture models and HARD)
                     self.iter = self.findClusterlabels_(X)
                 
                 if self.iter.code == 2 or i == self.ksteps-1:  # if findClusterLabels returned 1, meaning that the cluster labels_nment has not changed or we're in the last concentration step:
@@ -273,7 +273,7 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
                     self.iter.sigma[:, :, k] = 0
         return self.iter
 
-    ######## FUNCTIONS FOR obtaining the labels_ment and trimming: findClustlabels_ (mixture models and hard labels_ment)  findClustlabels__f  (fuzzy labels_ment)
+    ######## FUNCTIONS FOR obtaining the assignment and trimming: findClustlabels_ (mixture models and hard assignment)  findClustlabels__f  (fuzzy assignment)
     def findClusterlabels_(self, X):
         """
         FUNCTION FOR obtaining the cluster assignment and trimming in the non FUZZY CASE (mixture and hard labels_nments)
@@ -354,7 +354,7 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         pre_z = np.nansum(self.iter.z_ij * ll_log, axis=1)
         tc_set = np.argsort(pre_z) > np.floor(n * self.alpha)
 
-        # Obtain the labels_ment iter$labels_  iter$z_ij including trimming
+        # Obtain the assignment iter$labels_  iter$z_ij including trimming
         self.iter.labels_ = (np.argmax(ll, axis=1)+1) * tc_set
         self.iter.z_ij[~tc_set, :] = 0
 
