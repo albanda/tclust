@@ -1,10 +1,9 @@
+from tclust import TClust
 import numpy as np
 from numpy.matlib import repmat
 import matplotlib.pyplot as plt
 import time
 from sklearn.metrics import confusion_matrix
-
-from tclust import TClust
 
 
 def tkmeans(X, k, alpha=0.05, niter=20, ksteps=10, equal_weights=False, maxfact_d=5, m=2., zero_tol=1e-16, trace=0,
@@ -21,23 +20,23 @@ def tkmeans(X, k, alpha=0.05, niter=20, ksteps=10, equal_weights=False, maxfact_
 
 def main(doX=True, doY=True):
     nsamp = 200
-    p = 2
+    nfeat = 2
     gauss = np.random.randn
-    u = gauss(nsamp * p).reshape(nsamp, p)  # standard normal distribution
+    u = gauss(nsamp * nfeat).reshape(nsamp, nfeat)  # standard normal distribution
     v = np.cov(u.T)
     eig_values, eig_vectors = np.linalg.eig(v)
     
     if doX:
         t0 = time.clock()
-        x1 = gauss(nsamp * p).reshape(nsamp, p).dot(np.array([[1, 0], [0, 9]])).dot(eig_vectors) + \
+        x1 = gauss(nsamp * nfeat).reshape(nsamp, nfeat).dot(np.array([[1, 0], [0, 9]])).dot(eig_vectors) + \
              repmat(np.array([20, 20]).reshape(1, -1), nsamp, 1)
-        x2 = gauss(nsamp * p).reshape(nsamp, p).dot(np.array([[9, 0], [0, 1]])).dot(eig_vectors) + \
+        x2 = gauss(nsamp * nfeat).reshape(nsamp, nfeat).dot(np.array([[9, 0], [0, 1]])).dot(eig_vectors) + \
              repmat(np.array([-20, -20]).reshape(1, -1), nsamp, 1)
-        x3 = gauss(nsamp * p).reshape(nsamp, p).dot(np.array([[3, 0], [0, 3]])).dot(eig_vectors) + \
+        x3 = gauss(nsamp * nfeat).reshape(nsamp, nfeat).dot(np.array([[3, 0], [0, 3]])).dot(eig_vectors) + \
              repmat(np.array([0, 0]).reshape(1, -1), nsamp, 1)
-        x4 = gauss(nsamp * p).reshape(nsamp, p).dot(np.array([[25, 0], [0, 25]])).dot(eig_vectors) + \
+        x4 = gauss(nsamp * nfeat).reshape(nsamp, nfeat).dot(np.array([[25, 0], [0, 25]])).dot(eig_vectors) + \
              repmat(np.array([2, 3]).reshape(1, -1), nsamp, 1)
-        x = np.concatenate((x1, x2, x3, x4), axis=0)  # [800, 2]
+        x = np.concatenate((x1, x2, x3, x4), axis=0)  # shape=[800, 2]
         
         clusteringX = TClust(k=3, alpha=0.25, niter=200, ksteps=40, equal_weights=False, restr_cov_value='deter',
                              maxfact_e=1e10, maxfact_d=10, m=1.1, zero_tol=1e-16, trace=0, opt='mixture', sol_ini=None,
@@ -52,13 +51,13 @@ def main(doX=True, doY=True):
     
     if doY:
         t0 = time.clock()
-        y1 = gauss(nsamp * p).reshape(nsamp, p).dot(np.array([[1, 0], [0, 1]])).dot(eig_vectors) + \
+        y1 = gauss(nsamp * nfeat).reshape(nsamp, nfeat).dot(np.array([[1, 0], [0, 1]])).dot(eig_vectors) + \
              repmat(np.array([2.5, 3]).reshape(1, -1), nsamp, 1)
-        y2 = gauss(nsamp * p).reshape(nsamp, p).dot(np.array([[1, 0], [0, 1]])).dot(eig_vectors) + \
+        y2 = gauss(nsamp * nfeat).reshape(nsamp, nfeat).dot(np.array([[1, 0], [0, 1]])).dot(eig_vectors) + \
              repmat(np.array([-2.5, 3]).reshape(1, -1), nsamp, 1)
-        y3 = gauss(nsamp * p).reshape(nsamp, p).dot(np.array([[1, 0], [0, 1]])).dot(eig_vectors) + \
+        y3 = gauss(nsamp * nfeat).reshape(nsamp, nfeat).dot(np.array([[1, 0], [0, 1]])).dot(eig_vectors) + \
              repmat(np.array([0, 0]).reshape(1, -1), nsamp, 1)
-        y4 = gauss(nsamp * p).reshape(nsamp, p).dot(np.array([[8, 0], [0, 8]])).dot(eig_vectors) + \
+        y4 = gauss(nsamp * nfeat).reshape(nsamp, nfeat).dot(np.array([[8, 0], [0, 8]])).dot(eig_vectors) + \
              repmat(np.array([0, 2]).reshape(1, -1), nsamp, 1)
         y = np.concatenate((y1, y2, y3, y4), axis=0)  # [800, 2]
         
