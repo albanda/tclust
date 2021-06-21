@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 import time
 from sklearn.metrics import confusion_matrix
 
-import sys
-sys.path.append('../src/')
 from tclust import TClust
 
 

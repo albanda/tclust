@@ -7,7 +7,7 @@ from numpy.matlib import repmat
 from sklearn.base import BaseEstimator, ClusterMixin, TransformerMixin
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.utils.validation import check_is_fitted
-from iteration import Iteration
+from ._iteration import Iteration
 
 from numba import jit
 
