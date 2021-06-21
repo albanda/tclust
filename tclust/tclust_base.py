@@ -1,12 +1,13 @@
-import warnings
-warnings.filterwarnings('ignore')
+from ._iteration import Iteration
 
 import numpy as np
 from numpy.matlib import repmat
 from sklearn.base import BaseEstimator, ClusterMixin, TransformerMixin
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.utils.validation import check_is_fitted
-from iteration import Iteration
+
+import warnings
+warnings.filterwarnings('ignore')
 
 
 class TClust(ClusterMixin, BaseEstimator, TransformerMixin):

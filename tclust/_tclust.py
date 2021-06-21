@@ -1,15 +1,16 @@
-import time
-import warnings
-warnings.filterwarnings('ignore')
+from ._iteration import Iteration
 
 import numpy as np
 from numpy.matlib import repmat
 from sklearn.base import BaseEstimator, ClusterMixin, TransformerMixin
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.utils.validation import check_is_fitted
-from ._iteration import Iteration
 
 from numba import jit
+
+import warnings
+warnings.filterwarnings('ignore')
+
 
 
 class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
@@ -55,7 +56,7 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
     
     def __init__(self, k, alpha=0.05, niter=20, ksteps=10, equal_weights=False, restr_cov_value='eigen',
                  maxfact_e=5., maxfact_d=5, m=2., zero_tol=1e-16, trace=0, opt='hard', sol_ini=None,
-                 tk=False):
+                 tk=False, verbose=True):
         """
 
         :param k: number of clusters
@@ -94,6 +95,7 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         self.iter = None
         self.best_iter = Iteration()
         self.no_trim = None
+        self.verbose = verbose
 
     def fit(self, X, y=None):
         """
@@ -108,7 +110,7 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         self._check_params(X)
         # Start algorithm
         for j in range(self.niter):
-            if j > 0 and (j + 1) % 10 == 0:
+            if self.verbose and j > 0 and (j + 1) % 50 == 0:
                 print('Iteration = {}/{}'.format(j + 1, self.niter))
             if self.sol_ini is not None:  # needs to be an object of type Iteration; initial solution provided by the user
                 self.niter = 1
@@ -134,7 +136,8 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
                 self.iter = self.estimClustPar(X)  # estimates the cluster's parameters
             self.calc_obj_function(X)  # calculates the objetive function value
             if self.iter.obj > self.best_iter.obj:
-                print('(%d/%d) New iteration is better! Old obj: %.2f; New obj: %.2f' % (
+                if self.verbose:
+                    print('(%d/%d) New iteration is better! Old obj: %.2f; New obj: %.2f' % (
                 j + 1, self.niter, self.best_iter.obj, self.iter.obj))
                 self.best_iter.update(obj=self.iter.obj, labels_=self.iter.labels_, csize=self.iter.csize,
                                       cw=self.iter.cw,
@@ -470,10 +473,10 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         # The only relevant eigenvalues are those that belong to clusters with sample size > 0.
         # Eigenvalues corresponding to clusters with 0 individuals have no influence in the objective function.
         # If all the eigenvalues are 0 during the smart initialization we labels_n to all the eigenvalues the value 1.
-        if n == 0:  # TODO: seems fixed now...
-            print('Possible break!', n, d[nis > 0])
-            print('this should break:',
-                  max(d[nis > 0]))  # "zero-size array to reduction operation maximum which has no identity"
+        #if n == 0:
+        #    print('Possible break!', n, d[nis > 0])
+        #    print('this should break:',
+        #          max(d[nis > 0]))  # "zero-size array to reduction operation maximum which has no identity"
         if np.max(d[nis > 0]) <= zero_tol:
             return np.zeros((p, k))  # solution corresponds to matrix of 0s
         # Check if the eigenvalues verify the restrictions

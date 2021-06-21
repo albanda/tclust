@@ -3,7 +3,7 @@ import numpy as np
 
 class Iteration(object):
     """
-
+    Helper class for TClust package.
     """
     
     def __init__(self):
