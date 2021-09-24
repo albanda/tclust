@@ -2,7 +2,7 @@
 
 Python implementation of the tclust algorithm, compatible with scikit-learn.
 
-Papers:
+### Papers:
 
 - HARD ASSIGNMENT: Fritz, H., Garcia-Escudero, L. A., & Mayo-Iscar, A. (2012).
                            "tclust: An r package for a trimming approach to cluster analysis."

@@ -1,4 +1,4 @@
-from ._iteration import Iteration
+from _iteration import Iteration
 
 import numpy as np
 from numpy.matlib import repmat
@@ -643,3 +643,27 @@ def dmnorm_tk(x, mu, lambd):
     c = np.exp(-(0.5/lambd) * np.sum(b, axis=1))
     return a * c
 
+if __name__ == '__main__':
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
+    nsamp = 200
+    nfeat = 2
+    gauss = np.random.randn
+    u = gauss(nsamp * nfeat).reshape(nsamp, nfeat)  # standard normal distribution
+    v = np.cov(u.T)
+    eig_values, eig_vectors = np.linalg.eig(v)
+
+    x = pd.read_csv('../examples/x.csv', header=None).values
+
+    clusteringX = TClust(k=3, alpha=0.25, niter=200, ksteps=40, equal_weights=False, restr_cov_value='deter',
+                         maxfact_e=1e10, maxfact_d=10, m=1.1, zero_tol=1e-16, trace=0, opt='mixture', sol_ini=None,
+                         tk=False)
+    #t0 = time.clock()
+    clusteringX.fit(x)
+    #print('Time elapsed for x = %.2f s' % (time.clock() - t0))
+    print(set(clusteringX.best_iter.labels_))
+    plt.scatter(x[:, 0], x[:, 1], c=clusteringX.best_iter.labels_)
+    plt.show()
+    label = [1] * nsamp + [2] * nsamp + [3] * nsamp + [4] * nsamp
+    #print(confusion_matrix(label, clusteringX.best_iter.labels_))

@@ -8,12 +8,12 @@ class Iteration(object):
     
     def __init__(self):
         self.obj = -np.inf
-        self.code = np.nan
         self.labels_ = None
         self.csize = None
         self.cw = None
         self.sigma = None
         self.center = None
+        self.code = np.nan
         self.z_ij = None
         self.lambd = None
     
@@ -24,19 +24,19 @@ class Iteration(object):
         :param ndim: Number of dimensions
         :param k: Number of clusters
         """
+        print("Creating Iteration object with nobs=%d, ndim=%d, k=%d" % (nobs, ndim, k))
         self.obj = np.nan  # The value of the objective function of the best solution
-        self.labels_ = np.zeros(
-            nobs)  # A numerical vector of size n containing the cluster labels_nment for each observation
-        self.csize = np.nan * np.ones(
-            (1, k))  # An integer vector of length k, returning the number of observations contained by each cluster
-        self.cw = np.asarray([np.nan] * k)  # A numerical vector of length k, containing the weights of each cluster
-        self.sigma = np.nan * np.ones(
-            (ndim, ndim, k))  # An array of size ndim x ndim x k containing the covariance matrices of each cluster
-        self.center = np.nan * np.ones(
-            (k, ndim))  # A matrix of size k x ndim containing the centers of each cluster columnwise
-        self.code = np.nan  # this is a return code supplied by functions like findClustLabels_
-        self.z_ij = np.zeros((nobs, k))  # cluster assignment given by 0/1 columns (for hard)
-        self.lambd = np.asarray([np.nan] * k)  # diagonal values for tkmeans  # lambda in the R code
+        self.labels_ = np.zeros(nobs)  # Numerical vector of size n containing the cluster assignment for each observation
+        self.csize = np.nan * np.ones((1, k))  # Integer vector of length k,
+                                               # returning the number of observations contained by each cluster
+        self.cw = np.asarray([np.nan] * k)  # Numerical vector of length k, containing the weights of each cluster
+        self.sigma = np.nan * np.ones((ndim, ndim, k))  # Array of size ndim x ndim x k containing
+                                                        # the covariance matrices of each cluster
+        self.center = np.nan * np.ones((k, ndim))  # Matrix of size k x ndim containing the centers
+                                                    # of each cluster columnwise
+        self.code = np.nan  # Return code supplied by functions like findClusterLabels
+        self.z_ij = np.zeros((nobs, k))  # Cluster assignment given by 0/1 columns (for hard)
+        self.lambd = np.asarray([np.nan] * k)  # Diagonal values for tkmeans  # lambda in the R code
         return self
     
     def update(self, obj=None, labels_=None, csize=None, cw=None, sigma=None, center=None, z_ij=None, lambd=None,
@@ -44,19 +44,19 @@ class Iteration(object):
         if obj is not None:
             self.obj = obj
         if labels_ is not None:
-            self.labels_ = labels_
+            self.labels_ = np.copy(labels_)
         if csize is not None:
-            self.csize = csize
+            self.csize = np.copy(csize)
         if cw is not None:
-            self.cw = cw
+            self.cw = np.copy(cw)
         if sigma is not None:
-            self.sigma = sigma
+            self.sigma = np.copy(sigma)
         if center is not None:
-            self.center = center
+            self.center = np.copy(center)
         if z_ij is not None:
-            self.z_ij = z_ij
+            self.z_ij = np.copy(z_ij)
         if lambd is not None:
-            self.lambd = lambd
+            self.lambd = np.copy(lambd)
         if code is not None:
-            self.code = code
+            self.code = np.copy(code)
         return self
