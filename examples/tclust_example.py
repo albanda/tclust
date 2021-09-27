@@ -101,7 +101,7 @@ if __name__ == '__main__':
             print("y.set", set(y), 'labels set', set(clustering.best_iter.labels_))
             print(confusion_matrix(y, clustering.best_iter.labels_))
         elif t == 4:
-            main(doX=True, doY=False)
+            main(doX=True, doY=True)
             # Time elapsed for x: 28.32 / 42.13
             # Time elapsed for y = 35.17 s / 23.22 s
         if t != 4:
