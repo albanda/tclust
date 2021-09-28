@@ -1,8 +1,7 @@
 from ._iteration import Iteration
 
 import numpy as np
-from sklearn.base import BaseEstimator, ClusterMixin, TransformerMixin
-from sklearn.metrics.pairwise import euclidean_distances
+from sklearn.base import BaseEstimator, ClusterMixin
 from sklearn.utils.validation import check_is_fitted
 
 from numba import jit  # to speed up some routines
@@ -11,70 +10,111 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
+class TClust(ClusterMixin, BaseEstimator):
     """
-    Perform tclust clustering from matrix of data
+    General Trimming Approach to Robust Cluster Analysis
+    
+    TClust searches for k (or less) clusters with different covariance structures in a data matrix x.
+
+    To make the estimation robust, a proportion alpha of observations may be trimmed.
+    
+    This iterative algorithm initializes k clusters randomly and performs "concentration steps" in order to improve
+    the current cluster assignment. The number of maximum concentration steps to be performed is given by iter_max.
+    For approximately obtaining the global optimum, the system is initialized n_inits times and concentration
+    steps are performed until convergence or ksteps is reached.
+    When processing more complex data sets, higher values of n_inits and ksteps have to be specified
+    (obviously implying extra computation time). However, if more than half of the iterations do not converge,
+    a warning message is issued, indicating that n_inits has to be increased.
+    
+    The parameter restr_cov_var defines the cluster’s shape restrictions, which are applied to all clusters
+    during each iteration.  Options "eigen"/"deter" restrict the ratio between the maximum and minimum
+    eigenvalue/determinant of all cluster’s covariance structures to parameter restr_fact.
+    Setting restr_fact=1 yields the strongest restriction, forcing all eigenvalues/determinants to be equal
+    and so the method looks for similarly scattered (respectively spherical) clusters.
+    Option "sigma" is a simpler restriction, which averages the covariance structures during each
+    iteration (weighted by cluster sizes) in order to get similar (equal) cluster scatters.
+    
+    
+    .. note::
+        The trimmed k-means method (tkmeans) can be obtained by setting parameters restr="eigen",
+        restr_fact=1 and equal_weights = True.
 
     Parameters
     ----------
     k : int, default=2
         The number of clusters
+        
     alpha : float, default=0.05
         The proportion of observations to be trimmed
+        
     n_inits : int, default=20
         The number of random intializations to be performed
+        
     ksteps : int, default=40
         The maximum number of concentration steps to be performed
+        
     restr_cov_value : string, default='eigen'
-        The type of restriction to be applied on the cluster scatter matrices "eigen"  "deter" and "sigma"
+        The type of restriction to be applied on the cluster scatter matrices.
+        Valid values are {"eigen", "deter", "sigma"}.
+        
     equal_weights : bool, default=False
-        Specifying whether equal cluster weights are equal
+        Specifying whether equal cluster weights are equal.
+        
     zero_tol : float, default=1e-16
-        The zero tolerance used
-    maxfact_e=5.
-    maxfact_d=5
-    m=2.
-    trace=0
-    opt='hard'
-    sol_ini=None
-    tk=False
-    verbose=True
+        The zero tolerance used.
+        
+    maxfact_e : float, default=5
+        Level of eigen constraints.
+    
+    maxfact_d : float, default=5
+        Level of determinant constraints.
+        
+    m : float, default=2.
+        Fuzzy power parameter.
+        
+    opt : string, default='hard'
+        type of assignment. Accepted values are {'hard', 'mixture', 'fuzzy'}
 
-    Attributes
-    ----------
-    #centers A matrix of size p x k containing the centers of each cluster
-    #cov An array of size p x p x k containing the covariance matrices of each cluster (sigma)
-    #cluster A numerical vector of size n containing the cluster assignment for each observation (labels_)
-    #obj The value of the objective function of the best solution (obj)
-    #size An integer vector of size k, returning the number of observations contained by each cluster (csize)
-    #weights A numerical vector of length k, containing the weights of each cluster (cw)
+    sol_ini : object of class Iteration, default=None
+        Initial solution provided by the user.
+        
+    tk : bool, default=False
+        Whether to use tkmeans initialization.
+        
+    verbose : bool, default=True
+        Whether to print the progress of the objective function throughout the iterations.
 
-    core_sample_indices_ : ndarray of shape (n_core_samples,)
-        Indices of core samples.
-    components_ : ndarray of shape (n_core_samples, n_features)
-        Copy of each core sample found by training.
-    labels_ : ndarray of shape (n_samples)
-        Cluster labels for each point in the dataset given to fit().
-        Noisy samples are given the label 0.
-
+    
+    Example
+    --------
+    >>> from tclust import TClust
+    >>> import numpy as np
+    >>> X = np.array([[1, 2], [1, 4], [1, 0],
+    ...               [10, 2], [10, 4], [10, 0]])
+    >>> clustering = TClust(k=2).fit(X)
+    >>> clustering.labels_
+    array([2, 2, 2, 1, 1, 1], dtype=int64)
+    >>> clustering.iter.center
+    array([[10.,  2.], [ 1.,  2.]])
     """
     
     def __init__(self, k=2, alpha=0.05, n_inits=20, ksteps=10, equal_weights=False, restr_cov_value='eigen',
-                 maxfact_e=5., maxfact_d=5, m=2., zero_tol=1e-16, trace=0, opt='hard', sol_ini=None,
+                 maxfact_e=5., maxfact_d=5, m=2., zero_tol=1e-16, opt='hard', sol_ini=None,
                  tk=False, verbose=True):
         """
-
-        :param k: number of clusters
-        :param alpha: trimming factor
-        :param n_inits: maximum number of iterations
-        :param ksteps: maximum number of concentration steps to be performed
-        :param equal_weights: Specifying whether equal cluster weights are equal
-        :param restr_cov_value: The type of restriction to be applied on the cluster scatter matrices "eigen" , "deter" or "sigma"
-        :param maxfact_e:
-        :param maxfact_d:
+        Initialise
+        :param k: Number of clusters initially searched for.
+        :param alpha: Proportion of observations to be trimmed.
+        :param n_inits: Number of random initializations to be performed.
+        :param ksteps: Maximum number of concentration steps to be performed.
+                    The concentration steps are stopped whenever two consecutive steps lead to the same data partition.
+        :param equal_weights: Specifies whether equal cluster weights (True) or not (False) shall be considered in the concentration and assignment steps.
+        :param restr_cov_value: Type of restriction to be applied on the cluster scatter matrices. Valid values are "eigen" (default) , "deter" and "sigma".
+        :param maxfact_e: level of eigen constraints
+        :param maxfact_d: level of determinant constraints
         :param m:
-        :param zero_tol:
-        :param trace:
+        :param zero_tol: The zero tolerance used. Default = 1e-16.
+        :param verbose: Defines the verbosity level (default = True). If True, it gives additional information on the iteratively decreaseing objective function's value.
         :param opt:
         :param sol_ini:
         :param tk:
@@ -85,7 +125,6 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         self.ksteps = ksteps  # number of iterations within each initialization
         self.equal_weights = equal_weights  # equal population proportions  for all clusters
         self.zero_tol = zero_tol  # zero tolerance	(to be implemented)
-        self.trace = trace  # level of information provided (to be implemented)
         self.m = m  # fuzzy power parameter
         self.restr_deter = None
         self.restr_cov_value = restr_cov_value
@@ -104,13 +143,22 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         """
-        Computer tclust clustering
-        :param X: {array-like, sparse matrix} of shape (n_samples, n_features)
-                    Training instances to cluster.
-        :param y: Ignored
-            Not used, present for sklearn consistency by convention.
-        :return: fitted estimator
+        Compute tclust clustering.
+        
+        Parameters
+        -----------
+        X : {array-like, sparse matrix} of shape (n_samples, n_features)
+            Training instances to cluster. The observations should be given row-wise.
+
+        y : Ignored
+            Not used, present for API consistency with scikit-learn by convention.
+        
+        Returns
+        --------
+        self
+            Fitted estimator.
         """
+        
         n_samples, n_features = X.shape  # number of observations (n_samples); number of dimensions (n_features)
         self._check_params(n_samples, n_features)
         # Start algorithm
@@ -137,7 +185,8 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
                 else:  # estimates the cluster's assignment and TRIMMING (mixture models and hard assignment)
                     self.findClusterLabels(X)
                 
-                if self.iter.code == 2 or i == self.ksteps - 1:  # if findClusterLabels returned 1, meaning that the cluster assignment has not changed or we're in the last concentration step:
+                if self.iter.code == 2 or i == self.ksteps - 1:
+                    # if findClusterLabels returned 1, meaning that the cluster assignment has not changed or we're in the last concentration step:
                     break  # break the for loop: we finished this iteration! Don't re-estimate cluster parameters this time
                 self.estimClustPar(X)  # estimates the cluster's parameters
             self.calc_obj_function(X)  # calculates the objetive function value
@@ -151,47 +200,17 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
                                       lambd=self.iter.lambd, code=self.iter.code)
         self.labels_ = self.best_iter.labels_.copy()
         return self
-    
-    # TODO?
-    def transform(self, X):
-        """
-        Transform X to a cluster-distance space.
-        In the new space, each dimension is the distance to the cluster centers.
-        Note that even if X is sparse, the array returned by `transform` will typically be dense.
-        :param X: {array-like, sparse matrix} of shape (n_samples, n_features)
-                New data to predict.
-        :return:
-            X_new : ndarray of shape (n_samples, n_clusters)
-                    X transformed in the new space.
-        """
-        # TODO
-        check_is_fitted(self)
-        return euclidean_distances(X, self.iter.center)
-    
-    def fit_transform(self, X, y=None):
-        """
-        Compute clustering and transform X to cluster-distance space.
-        Equivalent to fit(X).transform(X), but more efficiently implemented.
-
-        :param X: {array-like, sparse matrix} of shape (n_samples, n_features)
-            New data to predict.
-        :param y: Ignored
-            Not used, present for sklearn consistency by convention.
-        :return:
-            X_new : ndarray of shape (n_samples, n_clusters)
-                X transformed in the new space.
-        """
-        return self.fit(X).transform(X)
-    
+        
     def predict(self, X):
         """
         Predict the closest cluster each sample in X belongs to.
 
         :param X: {array-like, sparse matrix} of shape (n_samples, n_features)
             New data to predict.
-        :return: labels : ndarray of shape (n_samples,)
+        :return: labels_ : ndarray of shape (n_samples,)
             Index of the cluster each sample belongs to.
         """
+        
         check_is_fitted(self)
         if self.opt in ['hard', 'mixture']:
             self.findClusterLabels(X)
@@ -202,23 +221,32 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
     def fit_predict(self, X, y=None):
         """
         Compute cluster centers and predict cluster index for each sample.
+        
         Convenience method; equivalent to calling fit(X) followed by predict(X).
-        :param X: {array-like, sparse matrix} of shape (n_samples, n_features)
+        
+        Parameters
+        ----------
+        X : {array-like, sparse matrix} of shape (n_samples, n_features)
             New data to transform.
-        :param y: Ignored
+        y : Ignored
             Not used, present here for API consistency by convention.
-        :return:
-            labels : ndarray of shape (n_samples,)
+        
+        Returns
+        -------
+        labels_ : ndarray of shape (n_samples,)
                 Index of the cluster each sample belongs to.
         """
+        
         return self.fit(X).labels_
     
-    def calc_obj_function(self, X):  # NOT OFFICIALLY TESTED, BUT IT ALL SEEMS SUPER FINE
+    def calc_obj_function(self, X):
         """
         Calculates the objective function value for mixture, hard, and fuzzy assignments
-        :param X: Array of data [nsamples, nfeatures]
-        :return:
+        
+        :param X: array of shape=(nsamples, nfeatures) containing the data
+        :return: N/A
         """
+        
         ww_m = np.zeros(shape=(X.shape[0], 1))  # mixture
         ww = np.zeros(shape=(X.shape[0], 1))  # hard or fuzzy
         for k in range(self.k):  # for each cluster
@@ -252,9 +280,11 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
     def estimClustPar(self, X):
         """
         Function to estimate model parameters
-        :param X: 2D array of data to cluster [samples, variables]
-        :return:
+        
+        :param X: array of shape=(nsamples, nfeatures) containing the data
+        :return: N/A
         """
+        
         for k in range(self.k):  # for each cluster
             if self.iter.csize[k] > self.zero_tol:  # if cluster size is > 0
                 self.iter.center[k, :] = (self.iter.z_ij[:, k].T).dot(X) / self.iter.csize[k]
@@ -270,17 +300,21 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
                     self.iter.lambd[k] = 0
                 else:
                     self.iter.sigma[:, :, k] = np.zeros((self.iter.sigma.shape[0], self.iter.sigma.shape[1]))
-    
-    ######## FUNCTIONS FOR obtaining the assignment and trimming:
-    # findClusterLabels (mixture models and hard assignment)
-    # findFuzzyClusterLabels  (fuzzy assignment)
+
+    ####################################################################################
+    ########### Functions for obtaining the assignment and trimming: ###################
+    ########### - findClusterLabels: for mixture models and hard assignment ############
+    ########### - findFuzzyClusterLabels: for fuzzy assignment #########################
+    ####################################################################################
+
     def findClusterLabels(self, X):
         """
         Obtain the cluster assignment and trimming in the non-fuzzy case (i.e., mixture and hard assignments)
         
-        :param X: data matrix (samples x dimensions)
+        :param X: array of shape=(nsamples, nfeatures) containing the data
         :return: N/A
         """
+        
         ll = self.get_ll(X)
         old_labels_ = self.iter.labels_.copy()
         self.iter.labels_ = np.argmax(ll, axis=1) + 1  # searching the cluster which fits each observation best
@@ -297,7 +331,7 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         elif self.opt == 'hard':
             tc_set = np.argsort(pre_z_h.argsort()) >= (np.floor(X.shape[0] * self.alpha))
         # To obtain the self.iter.z_ij matrix (which contains the assignment and trimming):
-        self.iter.labels_ = (np.argmax(ll, axis=1) + 1) * tc_set  # hard assignnment including trimming (labels E [1,K])
+        self.iter.labels_ = (np.argmax(ll, axis=1) + 1) * tc_set  # hard assignnment including trimming (labels_ E [1,K])
         self.iter.z_ij = ll / (pre_z_ + (pre_z_ == 0)) * tc_set.reshape((-1, 1))  # mixture assignment including trimming
         # Obtain the size of the clusters and the estimated weight of each population
         if self.opt == 'hard':
@@ -315,9 +349,10 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         """
         Obtain assignment and trimming in the fuzzy case
        
-        :param X:
-        :return:
+        :param X: array of shape=(nsamples, nfeatures) containing the data
+        :return: N/A
         """
+        
         n = X.shape[0]
         ll = self.get_ll(X)
         # Obtain the cluster assignnment (self.iter.labels_)
@@ -356,26 +391,31 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         if not self.equal_weights:
             self.iter.cw = self.iter.csize / np.sum(self.iter.csize)
     
-    ######## FUNCTIONS FOR RANDOM INITIALIZATION:  getini; init_clusters
-    # TESTED
+    ################################################################
+    ########### Functions for random initialization ################
+    ################################################################
+    
     def getini(self):
         """
         Calculates the initial cluster sizes
-        :return:
+        
+        :return: array, number of samples in each cluster
         """
+        
         if self.k == 1:
             return np.array(self.no_trim)
         pi_ini = np.random.uniform(low=0, high=1, size=self.k)  # sample from random uniform distribution
         ni_ini = np.random.choice(self.k, self.no_trim, replace=True, p=pi_ini / np.sum(pi_ini)) + 1
         return np.asarray([ni_ini.tolist().count(cl + 1) for cl in range(self.k)])
     
-    # TESTED
     def init_clusters(self, X):
         """
         Calculates the initial cluster assignment and initial values for the parameters
+        
         :param X: 2D array of data [samples, dimensions]
-        :return:
+        :return: N/A
         """
+        
         n, p = X.shape
         for k in range(self.k):
             # Select observations randomly for the current initialisation cluster
@@ -395,22 +435,25 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         self.iter.cw = self.iter.csize / self.no_trim
     
     def treatSingularity(self):
-        '''
-        To manage singular situations
-        :return:
-        '''
+        """
+        To manage singular situations.
+        
+        :return: N/A
+        """
+        
         if self.restr_deter or self.restr_cov_value == 'sigma':
             print("WARNING: Points in the dataset are concentrated in k subspaces after trimming")
         else:
             print("WARNING: Points in the dataset are concentrated in k points after trimming")
     
-    #TESTED
     def get_ll(self, X):
         """
         Extracted this function to avoid repetition in the code
-        :param X: 2D array of data, of shape [nsamp, nfeat]
-        :return: ll
+        
+        :param X: array; 2D array of data, of shape [nsamp, nfeat]
+        :return: array of shape (nsamp, k); ll
         """
+        
         ll = np.nan * np.ones((X.shape[0], self.k))
         if self.tk:
             for k in range(self.k):
@@ -420,8 +463,11 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
                 ll[:, k] = self.iter.cw[k] * dmnorm(x=X, mu=self.iter.center[k, :],
                                                     sigma=np.asarray(self.iter.sigma[:, :, k]))
         return ll
+
+    #####################################################################################
+    ########### Functions to apply constraints to covariance matrices ###################
+    #####################################################################################
     
-    ## FUNCTIONS FOR APPLYING CONSTRAINTS TO COVARIANCE MATRICES ##
     def restr2_eigenv(self, autovalues, ni_ini, factor_e, zero_tol):
         """
         Function for applying eigen constraints. These are the typical constraints.
@@ -430,8 +476,9 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         :param ni_ini: current sample size of the clusters
         :param factor_e: level of the constraints
         :param zero_tol: tolerance level
-        :return:
+        :return: ?
         """
+        
         assert factor_e > 0
         # Initialization
         d = np.copy(autovalues.T)
@@ -457,7 +504,6 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
             return np.zeros((p, k))  # solution corresponds to matrix of 0s
         # Check if the eigenvalues verify the restrictions
         if np.min(d[nis > 0]) == 0:  # avoiding runtime warning when dividing by 0
-            print("runtime warning avoided!")
             denom = 1e-16
         else:
             denom = np.min(d[nis > 0])
@@ -486,10 +532,11 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         temp = m * (d < m) + d * (d >= m) * (d <= factor_e * m) + (factor_e * m) * (d > factor_e * m)
         return temp.T  # the return value
     
-    # TESTED on 15/9/2021
+    
     def restr2_deter_(self, autovalues, ni_ini, factor_d, factor_e, zero_tol=1e-16):
         """
-        FUNCTION FOR APPLYING DETER CONSTRAINTS
+        Function for applying constraints to the determinants.
+        
         Used when p>1 (multivariate case) -- in the univariate case the constraints can be obtained with restr2_eigenv()
         In order to avoid the instability in the current release of this function implemented in the CRAN,
         it is better to apply these constraints, at the desired level,
@@ -501,8 +548,9 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
         :param factor_d: constraint level for the determinants
         :param factor_e: constraint level for the eigenvalues
         :param zero_tol: tolerance level
-        :return:
+        :return: ?
         """
+        
         nrows, ncols = autovalues.shape
         autovalues[autovalues < 1e-16] = 0  # TODO: it's like this in the R code, but should probably be passed as a variable instead
         autovalues_ = np.copy(autovalues)
@@ -524,9 +572,11 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
     def restr_diffax(self, p):
         """
         Function which manages the application of constraints (deter, eigen)
-        :param p: number of features of the data
-        :return:
+        
+        :param p: int, number of features of the data
+        :return: N/A
         """
+        
         u = np.nan * np.ones((p, p, self.k))
         d = np.nan * np.ones((p, self.k))
         if not self.tk:
@@ -552,12 +602,14 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
             self.iter.lambd = d[0, :].copy()
     
     def restr_avgcov(self, p):
-        '''
-        Restricts the clusters' covariance matrices to be equal
-        Simple function to get the pooled within group covariance matrix
-        :param p: number of dimensions of the data
-        :return:
-        '''
+        """
+        Restricts the clusters' covariance matrices to be equal.
+        Simple function to get the pooled within group covariance matrix.
+        
+        :param p: int, number of dimensions of the data
+        :return: N/A
+        """
+        
         s_all = np.zeros((p, p))
         for k in range(self.k):
             s_all += self.iter.sigma[:, :, k] * self.iter.csize[k] / np.sum(self.iter.csize)
@@ -565,45 +617,48 @@ class TClust(ClusterMixin, BaseEstimator, TransformerMixin):
             self.iter.sigma[:, :, k] = s_all.copy()
         self.iter.code = int(np.sum(np.diag(s_all)) > self.zero_tol)
     
-    # TESTED
+    
     def _check_params(self, n, p):
+        """
+        Checks the parameters for the execution and completes missing variables.
+        
+        :param n: int, number of observations
+        :param p: int, number of dimensions
+        :return: N/A
+        """
+        
         self.iter = Iteration().fill(nobs=n, ndim=p, k=self.k)
         if self.restr_cov_value == 'sigma':
-            print('p=%d, restr_cov_value=sigma, f_restr=restr_avgcov, restr_deter=False' % p)
             self.f_restr = self.restr_avgcov
             self.restr_deter = False
         if p == 1:
-            print('p=%d, restr_cov_value=%s, f_restr=restr_diffax, restr_deter=False' % (p, self.restr_cov_value))
             self.f_restr = self.restr_diffax
             self.restr_deter = False
         else:
             if self.restr_cov_value == 'eigen':
-                print('p=%d, restr_cov_value=eigen, f_restr=restr_diffax, restr_deter=False' % p)
                 self.f_restr = self.restr_diffax
                 self.restr_deter = False
             elif self.restr_cov_value == 'deter':
-                print('p=%d, restr_cov_value=deter, f_restr=restr_diffax, restr_deter=False' % p)
                 self.f_restr = self.restr_diffax
                 self.restr_deter = True
         self.no_trim = int(np.floor(n * (1 - self.alpha)))  # number of observations which are considered not outliers
 
 
-###### MISCELANEOUS FUNCTIONS: dmnorm  dmnorm_tk
-@jit(nopython=True)  # TESTED
+######################################################
+########### Miscelaneous functions ###################
+######################################################
+
+@jit(nopython=True)
 def dmnorm(x, mu, sigma):
     """
-    FULLY TESTED ON 16/8/2021
     Multivariate normal density
-    :param x: 2D array of data [n_samples x n_features]
+    
+    :param x:  array of shape=(nsamples, nfeatures) containing the data
     :param mu: center of the cluster [features, ]
     :param sigma:
-    :return:
+    :return: ?
     """
-    # R: ((2 * pi) ^ (-length(mu) / 2)) * (det(sigma) ^ (-1 / 2)) * exp(-0.5 * mahalanobis(X, mu, sigma))
-    # R's Mahalanobis: x is an (n x p) matrix of data
-    #                  mu is the mean vector of the distribution or the second data vector of length p
-    #                  sigma is the covariance matrix (p x p) of the distribution
-    # D^2 = (x-mu)' * (sigma**-1(x-mu)
+    
     centered_array = x - mu
     inv_cov = np.linalg.inv(sigma)
     mahal_dist = []
@@ -618,11 +673,13 @@ def dmnorm(x, mu, sigma):
 def dmnorm_tk(x, mu, lambd):
     """
     Multivariate normal density sigma=lambd*ID
-    :param x: 2D array of data [samples, features]
+    
+    :param x:  array of shape=(nsamples, nfeatures) containing the data
     :param mu: center of the cluster [features, ]
     :param lambd: one number - diagonal value for tkmeans (whatever that means)
-    :return:
+    :return: ?
     """
+    
     a = ((2 * np.pi) ** (-0.5 * len(mu))) * (lambd ** (-len(mu) / 2))
     b = (np.multiply(np.ones((x.shape[0], 1)), mu) - x) ** 2
     c = np.exp(-(0.5 / lambd) * np.sum(b, axis=1))

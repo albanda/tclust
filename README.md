@@ -1,8 +1,14 @@
-# tclust
+# tclust: General Trimming Approach to Robust Cluster Analysis
 
 Python implementation of the tclust algorithm, compatible with scikit-learn.
 
 ### Papers:
+
+Garcia-Escudero, L.A.; Gordaliza, A.; Matran, C. and Mayo-Iscar, A. (2008), "A General Trimming
+Approach to Robust Cluster Analysis". Annals of Statistics, Vol.36, 1324-1345.
+
+Fritz, H.; Garcia-Escudero, L.A.; Mayo-Iscar, A. (2012), "tclust: An R Package for a Trimming Approach
+to Cluster Analysis". Journal of Statistical Software, 47(12), 1-26. URL http://www.jstatsoft.org/v47/i12/
 
 - HARD ASSIGNMENT: Fritz, H., Garcia-Escudero, L. A., & Mayo-Iscar, A. (2012).
                            "tclust: An r package for a trimming approach to cluster analysis."
