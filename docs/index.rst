@@ -6,7 +6,7 @@
 Welcome to TClust!
 ==================================
 
-
+The documentation for `tclust` is available on Read the Docs: https://tclust.readthedocs.io
 
 Contents:
 
