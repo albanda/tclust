@@ -9,8 +9,8 @@ Garcia-Escudero, L.A.; Gordaliza, A.; Matran, C. and Mayo-Iscar, A. (2008), "A G
 Approach to Robust Cluster Analysis". Annals of Statistics, Vol.36, 1324-1345.
 
 - HARD ASSIGNMENT: Fritz, H., Garcia-Escudero, L. A., & Mayo-Iscar, A. (2012).
-                           "tclust: An r package for a trimming approach to cluster analysis."  URL http://www.jstatsoft.org/v47/i12/
-                           Journal of Statistical Software, 47(12), 1-26.
+                           "tclust: An r package for a trimming approach to cluster analysis."
+                           Journal of Statistical Software, 47(12), 1-26. URL http://www.jstatsoft.org/v47/i12/
 - MIXTURE MODEL: Garcia-Escudero, Luis Angel, Alfonso Gordaliza, and Agustin Mayo-Iscar.
                  "A constrained robust proposal for mixture modeling avoiding spurious solutions."
                  Advances in Data Analysis and Classification 8.1 (2014): 27-43.
