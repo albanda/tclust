@@ -32,8 +32,7 @@ class Iteration(object):
         Cluster assignment for each sample. Shape=(nobs, k).
     
     lambd : ndarray
-        Diagonal values for tkmeans. Shape=(k,).
-    
+        Diagonal values for tkmeans. Shape=(k, ).
     
     """
     

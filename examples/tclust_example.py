@@ -1,22 +1,9 @@
-from tclust import TClust
+from tclust import TClust, tkmeans
 import numpy as np
-#from numpy.matlib import repmat
 import matplotlib.pyplot as plt
 import time
 from sklearn.metrics import confusion_matrix
 import pandas as pd
-
-
-def tkmeans(X, k, alpha=0.05, niter=20, ksteps=10, equal_weights=False, maxfact_d=5, m=2., zero_tol=1e-16, trace=0,
-            opt="hard", sol_ini=None):
-    if X.shape[1] > 1:
-        return TClust(k=k, alpha=alpha, n_inits=niter, ksteps=ksteps, equal_weights=equal_weights,
-                      restr_cov_value='deter', maxfact_e=1, maxfact_d=maxfact_d, m=m, zero_tol=zero_tol, trace=trace,
-                      opt=opt, sol_ini=sol_ini, tk=True).fit(X)
-    elif X.shape[1] == 1:
-        return TClust(k=k, alpha=alpha, n_inits=niter, ksteps=ksteps, equal_weights=equal_weights,
-                      restr_cov_value='deter', maxfact_e=1, maxfact_d=maxfact_d, m=m, zero_tol=zero_tol, trace=trace,
-                      opt=opt, sol_ini=sol_ini, tk=False).fit(X)
 
 
 def main(doX=True, doY=True):

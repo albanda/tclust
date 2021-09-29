@@ -58,7 +58,7 @@ class TClust(ClusterMixin, BaseEstimator):
         Valid values are {"eigen", "deter", "sigma"}.
         
     equal_weights : bool, default=False
-        Specifying whether equal cluster weights are equal.
+        Specifying whether cluster weights are equal.
         
     zero_tol : float, default=1e-16
         The zero tolerance used.
@@ -73,7 +73,7 @@ class TClust(ClusterMixin, BaseEstimator):
         Fuzzy power parameter.
         
     opt : string, default='hard'
-        type of assignment. Accepted values are {'hard', 'mixture', 'fuzzy'}
+        Type of assignment. Accepted values are {'hard', 'mixture', 'fuzzy'}
 
     sol_ini : object of class Iteration, default=None
         Initial solution provided by the user.
@@ -112,12 +112,12 @@ class TClust(ClusterMixin, BaseEstimator):
         :param restr_cov_value: Type of restriction to be applied on the cluster scatter matrices. Valid values are "eigen" (default) , "deter" and "sigma".
         :param maxfact_e: level of eigen constraints
         :param maxfact_d: level of determinant constraints
-        :param m:
+        :param m: fuzzy power parameter
         :param zero_tol: The zero tolerance used. Default = 1e-16.
         :param verbose: Defines the verbosity level (default = True). If True, it gives additional information on the iteratively decreaseing objective function's value.
-        :param opt:
-        :param sol_ini:
-        :param tk:
+        :param opt: type of assignment ('hard', 'mixture', or 'fuzzy'). Default='hard'.
+        :param sol_ini: Initial solution provided by the user. Default=None (i.e., random initialization).
+        :param tk: Whether to use random tkmeans initialization.
         """
         self.k = k  # number of clusters
         self.alpha = alpha  # level of trimming
@@ -207,7 +207,7 @@ class TClust(ClusterMixin, BaseEstimator):
 
         :param X: {array-like, sparse matrix} of shape (n_samples, n_features)
             New data to predict.
-        :return: labels_ : ndarray of shape (n_samples,)
+        :return: labels_: ndarray of shape (n_samples, )
             Index of the cluster each sample belongs to.
         """
         
@@ -228,6 +228,7 @@ class TClust(ClusterMixin, BaseEstimator):
         ----------
         X : {array-like, sparse matrix} of shape (n_samples, n_features)
             New data to transform.
+            
         y : Ignored
             Not used, present here for API consistency by convention.
         
@@ -642,6 +643,68 @@ class TClust(ClusterMixin, BaseEstimator):
                 self.f_restr = self.restr_diffax
                 self.restr_deter = True
         self.no_trim = int(np.floor(n * (1 - self.alpha)))  # number of observations which are considered not outliers
+
+
+#####################################################
+######## Shortcut for trimmed k-means ###############
+#####################################################
+def tkmeans(X, k, alpha=0.05, niter=20, ksteps=10, equal_weights=False, maxfact_d=5, m=2., zero_tol=1e-16,
+            opt="hard", sol_ini=None, verbose=False):
+    """
+    Convenient function to run trimmed k-means on the data.
+    
+    Parameters
+    ----------
+    X : array
+        Data to be clustered. shape=(n_observations, n_dimensions)
+    
+    k : int
+        The number of clusters
+        
+    alpha : float, default=0.05
+        The proportion of observations to be trimmed
+        
+    niter : int, default=20
+        The number of random intializations to be performed
+        
+    ksteps : int, default=10
+        The maximum number of concentration steps to be performed
+    
+    equal_weights : bool, default=False
+        Specifying whether cluster weights are equal.
+        
+    maxfact_d : float, default=5
+        Level of determinant constraints.
+        
+    m : float, default=2.
+        Fuzzy power parameter.
+    
+    zero_tol : float, default=1e-16
+        The zero tolerance used.
+        
+    opt : string, default='hard'
+        Type of assignment. Accepted values are {'hard', 'mixture', 'fuzzy'}
+
+    sol_ini : object of class Iteration, default=None
+        Initial solution provided by the user. None is used for random initializations.
+        
+    verbose : bool, default=True
+        Whether to print the progress of the objective function throughout the iterations.
+        
+    Returns
+    -------
+    Fitted TClust estimator.
+
+    """
+    
+    if X.shape[1] > 1:
+        return TClust(k=k, alpha=alpha, n_inits=niter, ksteps=ksteps, equal_weights=equal_weights, verbose=verbose,
+                      restr_cov_value='deter', maxfact_e=1, maxfact_d=maxfact_d, m=m, zero_tol=zero_tol,
+                      opt=opt, sol_ini=sol_ini, tk=True).fit(X)
+    elif X.shape[1] == 1:
+        return TClust(k=k, alpha=alpha, n_inits=niter, ksteps=ksteps, equal_weights=equal_weights, verbose=verbose,
+                      restr_cov_value='deter', maxfact_e=1, maxfact_d=maxfact_d, m=m, zero_tol=zero_tol,
+                      opt=opt, sol_ini=sol_ini, tk=False).fit(X)
 
 
 ######################################################
