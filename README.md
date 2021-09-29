@@ -2,6 +2,8 @@
 
 Python implementation of the tclust algorithm, compatible with scikit-learn.
 
+The documentation for tclust is available on Read the Docs: https://tclust.readthedocs.io
+
 ### Papers:
 
 SEMINAL PAPER:
